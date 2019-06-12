@@ -2,8 +2,8 @@ import com.fasterxml.jackson.databind.JsonNode
 import java.io.IOException
 import java.io.FileReader
 import java.io.BufferedReader
-
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.io.File
 import java.lang.Exception
 
 
@@ -24,192 +24,100 @@ class MissingVideoId(message: String): Exception(message)
 
 class LogParser(private val logFileName: String) {
 
-	private val VIDEO_EVENT_TYPES = listOf("play_video", "stop_video", "pause_video", "seek_video")
 	private val mapper = ObjectMapper()
 
-	fun readAndPrintLines() {
-		try {
-			val reader = BufferedReader (FileReader(logFileName))
-			var line = reader.readLine()
-			while (line != null) {
-				println(line)
-				line = reader.readLine()
-			}
-			reader.close()
-		} catch (e: IOException) {
-			e.printStackTrace()
-		}
-	}
-
-
-	fun extractVideoEvent(logFieldsTree: Iterator<MutableMap.MutableEntry<String, JsonNode>>): VideoEvent
+	fun getVideoEventTime(log: Iterator<MutableMap.MutableEntry<String, JsonNode>>): Double
 	{
-		if (!isVideoLog(logFieldsTree))
-			throw NotAVideoEventLog(logFieldsTree.toString())
-		return when (getEventTypeFromLog(logFieldsTree))
+		var event: JsonNode? = null
+		for (field in log)
 		{
-			"play_video" -> extractPlayVideoEvent(logFieldsTree)
-			"seek_video" -> extractSeekVideoEvent(logFieldsTree)
-			"pause_video" -> extractPauseVideoEvent(logFieldsTree)
-			"stop_video" -> extractStopVideoEvent(logFieldsTree)
-			else -> throw NotAVideoEventLog(logFieldsTree.toString())
+			if (field.key != "event") continue
+			event = mapper.readTree(field.value.asText())
 		}
+
+		for (field in event!!.fields())
+		{
+			if (field.key != "currentTime" && field.key != "old_time") continue
+			if (!field.value.isDouble) throw Exception("Found event time, but it's not double: ${field.value.asText()}")
+			println(field.value.asText())
+			return field.value.asDouble()
+		}
+		throw Exception("Found nothing")
 	}
 
-	private fun extractEventTimePauseStopPlayVideoLog(
-			logEventFieldTree: JsonNode): Double
+	fun getVideoEventUserName(log: Iterator<MutableMap.MutableEntry<String, JsonNode>>): String
 	{
-		for (field in logEventFieldTree!!.fields())
-		{
-			if (field.key == "currentTime")
-			{
-				if (!field.value.isDouble)
-					throw InvalidEventField(logEventFieldTree.fields().toString())
-				return field.value.asDouble()
-			}
-			else
-				continue
-		}
-		throw MissingLogData(logEventFieldTree.toString())
+		TODO()
 	}
 
-	private fun extractEventTimeSeekVideoLog(logEventFieldTree: JsonNode): Double
+	fun getVideoEventVideoId(log: Iterator<MutableMap.MutableEntry<String, JsonNode>>): String
 	{
-		for (field in logEventFieldTree!!.fields())
-		{
-			if (field.key == "old_time")
-			{
-				if (!field.value.isDouble)
-					throw InvalidEventField(logEventFieldTree.fields().toString())
-				return field.value.asDouble()
-			}
-			else
-				continue
-		}
-		throw MissingLogData(logEventFieldTree.toString())
+		TODO()
 	}
 
-	private fun extractUsernameVideoLog(logEventFileTree: Iterator<MutableMap.MutableEntry<String, JsonNode>>): String
+	fun getVideoEventType(log: Iterator<MutableMap.MutableEntry<String, JsonNode>>): String
 	{
-		for (field in logEventFileTree)
-		{
-			if (field.key != "username")
-				continue
-			if (!field.value.isTextual)
-				throw InvalidUsernameField(logEventFileTree.toString())
-			return field.value.asText()
-		}
-		throw InvalidUsernameField(logEventFileTree.toString())
+		TODO()
 	}
 
-	private fun extractVideoIdVideoLog(logEventFieldTree: JsonNode): String
+	fun isVideoEvent(log: Iterator<MutableMap.MutableEntry<String, JsonNode>>): Boolean
 	{
-		for (field in logEventFieldTree.fields())
+		for (field in log)
 		{
-			if (field.key != "id")
-				continue
-			if (!field.value.isTextual)
-				throw MissingVideoId(logEventFieldTree.toString())
-			return field.value.asText()
-		}
-		throw MissingVideoId(logEventFieldTree.toString())
-	}
+			if (field.key != "event_type") continue
+			if (!field.value.isTextual) throw Exception("Found event_type, but it's not string")
+			val eventType = field.value.asText()
+			if (
+					eventType == "play_video" ||
+					eventType == "seek_video" ||
+					eventType == "pause_video" ||
+					eventType == "stop_video"
+			)
+				return true
 
-	private fun extractPauseVideoEvent(logFieldsTree: Iterator<MutableMap.MutableEntry<String, JsonNode>>): VideoEvent
-	{
-		var logEventFieldTree: JsonNode? = null
-		var videoId: String? = null
-		var videoTime: Double? = null
-		val eventType = "pause"
-		var userName: String? = null
-
-
-		for (field in logFieldsTree)
-		{
-			if (field.key != "event")
-				continue
-			if (!field.value.isTextual)
-				throw InvalidEventField(logFieldsTree.toString())
-			logEventFieldTree = field.value
-		}
-
-		for (field in logEventFieldTree!!.fields())
-		{
-			if (field.key == "id")
-			{
-				if (!field.value.isTextual)
-					throw InvalidEventField(logEventFieldTree.fields().toString())
-				videoId = field.value.asText()
-			}
-			else if (field.key == "currentTime")
-			{
-				if (!field.value.isDouble)
-					throw InvalidEventField(logEventFieldTree.fields().toString())
-				videoTime = field.value.asDouble()
-			}
-			else
-				continue
-		}
-
-		for (field in logFieldsTree)
-		{
-			if (field.key != "username")
-				continue
-			if (field.value.isTextual)
-				throw InvalidUsernameField(logFieldsTree.toString())
-			userName = field.value.asText()
-		}
-
-		if (userName.isNullOrEmpty() || videoTime == null || videoId.isNullOrEmpty())
-		{
-			throw MissingLogData(logEventFieldTree.toString())
-		}
-
-		return VideoEvent(
-				eventTime = videoTime,
-				eventType = eventType,
-				videoId = videoId,
-				userName = userName
-		)
-	}
-
-	private fun getEventTypeFromLog(logFieldsTree: Iterator<MutableMap.MutableEntry<String, JsonNode>>): String {
-		if (!isVideoLog(logFieldsTree))
-			throw NotAVideoEventLog(logFieldsTree.toString())
-		for (field in logFieldsTree)
-		{
-			if (field.key !in this.VIDEO_EVENT_TYPES)
-				continue
-			if (!field.value.isTextual)
-				throw InvalidEventTypeField(logFieldsTree.toString())
-			return field.value.asText()
-		}
-		throw EventTypeFieldNotFound(logFieldsTree.toString())
-	}
-
-	private fun isVideoLog(logFieldsTree: Iterator<MutableMap.MutableEntry<String, JsonNode>>): Boolean {
-		for (field in logFieldsTree)
-		{
-			if (field.key != "video_event")
-				continue
-			if (!field.value.isTextual)
-				continue
-			return field.value.asText() in this.VIDEO_EVENT_TYPES
 		}
 		return false
 	}
 
-	fun extractVideoEvents() {
-		val reader = BufferedReader (FileReader(logFileName))
-		var logLine = reader.readLine()
-
-		val logTreeRoot = this.mapper.readTree(logLine)
-		val logFieldsTree = logTreeRoot.fields()
+	fun extractVideoEvents(logString: String)
+	{
+		val parser = LogParser("F")
 	}
 }
 
 fun main() {
+	val videoEventTypesSet = setOf("play_video", "seek_video", "pause_video", "stop_video")
+
+	// Create parser
 	val parser = LogParser("src/resources/spbu_DEL_OBS_fall_2018")
-	parser.countVideoLogs()
+
+	// Open file
+	val logFileName = "src/resources/spbu_BIOINF_spring_2018-TL"
+	val mapper = ObjectMapper()
+	val reader = BufferedReader (FileReader(logFileName))
+
+	var line = reader.readLine()
+	while (line != null)
+	{
+		var tree = mapper.readTree(line)
+		line = reader.readLine()
+		if (!tree.has("event_type"))
+			continue
+		var eventType = tree["event_type"].asText()
+		if (!videoEventTypesSet.contains(eventType))
+			continue
+		var eventTree = mapper.readTree(tree["event"].asText())
+		println(eventTree["id"])
+		if (eventType == "seek_video")
+			println(eventTree["old_time"].asDouble())
+		else
+			println(eventTree["currentTime"].asDouble())
+		when(eventType)
+		{
+			"play_video" -> println("play")
+			else -> println("pause")
+		}
+		println(tree["username"])
+	}
 }
 
