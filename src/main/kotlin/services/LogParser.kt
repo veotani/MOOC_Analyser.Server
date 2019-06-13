@@ -1,3 +1,5 @@
+package services
+
 import com.fasterxml.jackson.databind.JsonNode
 import java.io.FileReader
 import java.io.BufferedReader
@@ -13,13 +15,13 @@ data class VideoEvent(
 
 
 class LogParser(logFileName: String) {
-
 	private val mapper = ObjectMapper()
 	private val reader = BufferedReader (FileReader(logFileName))
 	private val videoEventTypesSet = setOf("play_video", "seek_video", "pause_video", "stop_video")
 
-	fun extractVideoEventsFromLogs()
+	fun extractVideoEventsFromLogs(): MutableList<VideoEvent>
 	{
+		val videoEvents = mutableListOf<VideoEvent>()
 		var line = reader.readLine()
 		while (line != null)
 		{
@@ -28,12 +30,9 @@ class LogParser(logFileName: String) {
 			if (!isVideoLog(log))
 				continue
 			val videoEvent = getVideoEventDataOfLog(log)
-
-			println("Username:\t${videoEvent.userName}")
-			println("Event time:\t${videoEvent.eventTime}")
-			println("Event type:\t${videoEvent.eventType}")
-			println("Video id:\t${videoEvent.videoId}")
+			videoEvents.add(videoEvent)
 		}
+		return videoEvents
 	}
 
 	private fun logToJSON(log: String): JsonNode
@@ -77,10 +76,4 @@ class LogParser(logFileName: String) {
 
 		return VideoEvent(videoEventTime, videoEventType, videoId, userName)
 	}
-}
-
-
-fun main() {
-	val parser = LogParser("src/resources/spbu_DEL_OBS_fall_2018")
-	parser.extractVideoEventsFromLogs()
 }
