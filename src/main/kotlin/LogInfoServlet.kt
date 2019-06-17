@@ -23,9 +23,11 @@ class UploadLogsController: HttpServlet() {
 
         // Get file from request
         val filePart = req.getPart("uploadFile") // Retrieves <input type="file" name="file">
-        val fileContent = filePart.inputStream
+        val fileContent = filePart.inputStream // TODO: pass it to manager
         val reader = BufferedReader (fileContent.reader())
-        val fileName = "saved_logs/${filePart.submittedFileName}"
+        // make sure directory exists
+        File("/tmp/MOOC_logs/").mkdirs()
+        val fileName = "/tmp/MOOC_logs/${filePart.submittedFileName}"
 
         // Save that file in TomCat dir
         // TODO: save this file somewhere else
