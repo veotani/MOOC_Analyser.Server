@@ -1,16 +1,26 @@
 package managers
 
+import repositories.VideoEventRepository
 import services.*
 import java.io.*
 
-class LogManager(val fileName: String)
+class LogManager(private val fileName: String)
 {
-    val folderToSaveTempFiles = "/tmp/MOOC_logs/"
+    private val folderToSaveTempFiles = "/tmp/MOOC_logs/"
+    private val repository = VideoEventRepository()
 
-    fun saveRecievedFile(file: InputStream)
+    fun processFile(file: InputStream)
+    {
+        saveReceivedFile(file)
+        val videoEvents = extractVideoEvents()
+        saveVideoEventsToDb(videoEvents)
+        deleteReceivedFile()
+    }
+
+    private fun saveReceivedFile(file: InputStream)
     {
         // Create temp directory
-        File("/tmp/MOOC_logs/").mkdirs()
+        File(folderToSaveTempFiles).mkdirs()
         val filePath = "$folderToSaveTempFiles$fileName"
         val reader = BufferedReader(file.reader())
         var line = reader.readLine()
@@ -23,19 +33,20 @@ class LogManager(val fileName: String)
         }
     }
 
-    fun doParsing(): MutableList<VideoEvent>
+    private fun extractVideoEvents(): MutableList<VideoEvent>
     {
         val logFileName = "$folderToSaveTempFiles$fileName"
         val parser = LogParser(logFileName)
         return parser.extractVideoEventsFromLogs()
     }
 
-    fun saveVideoEventsToDb(events: MutableList<VideoEvent>)
+    private fun saveVideoEventsToDb(events: MutableList<VideoEvent>)
     {
-
+        for (event in events)
+            this.repository.insertVideoEvent(event, this.fileName)
     }
 
-    fun deleteRecievedFile()
+    private fun deleteReceivedFile()
     {
         val filePath = "$folderToSaveTempFiles$fileName"
         File(filePath).delete()
