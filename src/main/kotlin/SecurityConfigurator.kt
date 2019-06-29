@@ -46,7 +46,7 @@ class BasicAuthConfiguration : WebSecurityConfigurerAdapter() {
             .antMatchers("/login").permitAll()
             .antMatchers("/register").permitAll()
             .antMatchers("/fileNames").authenticated()
-            .antMatchers("/uploadLogs").hasRole("ADMIN")
+            .antMatchers("/uploadLogs").permitAll()//.hasRole("ADMIN")
             .antMatchers("/usernames").authenticated()
             .antMatchers("/individualVideoAnalysis").authenticated()
             .antMatchers("/videos").authenticated()

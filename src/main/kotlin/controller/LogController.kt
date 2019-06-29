@@ -6,19 +6,27 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.multipart.MultipartFile
 import service.LogInfoService
+import web.api.model.UploadLogStatusDTO
 
-@CrossOrigin
-@Controller
+@CrossOrigin(origins = ["http://localhost:4200"])
+@RestController
 class LogController {
 
     @PostMapping("/uploadLogs")
-    fun uploadLogs(@RequestParam(value = "uploadFile") file: MultipartFile)
+    fun uploadLogs(@RequestParam(value = "uploadFile") file: MultipartFile): UploadLogStatusDTO
     {
-        val modelAndView = ModelAndView("file")
         val fileStream = file.inputStream
         val fileName = file.originalFilename
         val manager = LogManager(fileName)
-        manager.processFile(fileStream)
+        try
+        {
+            manager.processFile(fileStream)
+        }
+        catch (e: Exception)
+        {
+            return UploadLogStatusDTO("Fail! Error: ${e.stackTrace}")
+        }
+        return UploadLogStatusDTO("success")
     }
 
 }

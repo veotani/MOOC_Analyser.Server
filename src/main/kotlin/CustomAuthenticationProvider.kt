@@ -21,7 +21,8 @@ class CustomAuthenticationProvider : AuthenticationProvider
         user.password = authentication.credentials.toString()
         if (service.isAValidUser(user))
         {
-            var grantedAuthority = listOf<GrantedAuthority>(SimpleGrantedAuthority("USER"))
+            val role = service.getRoleByUserName(user.userName!!)
+            var grantedAuthority = listOf<GrantedAuthority>(SimpleGrantedAuthority(role))
             var principal = org.springframework.security.core.userdetails.User(user.userName, user.password, grantedAuthority)
             var auth = UsernamePasswordAuthenticationToken(principal, user.password, grantedAuthority)
             return auth
